@@ -151,5 +151,5 @@ if uploaded_file is not None:
                         # Convert to numpy for display
                         pooled_map_numpy = normalized_map.numpy()
                         
-                        st.image(pooled_map_numpy, caption=f'Channel {i+1}', use_column_width=True)
+                        st.image(pooled_map_numpy, caption=f'Channel {i+1}', use_container_width=True)
                         # --- NORMALIZATION FIX ENDS HERE ---
