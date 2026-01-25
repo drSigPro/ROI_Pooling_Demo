@@ -1,7 +1,7 @@
-streamlit=1.32.2
-torch=2.2.1
-torchvision=0.17.1
-streamlit-cropper=.3.1
+streamlit
+torch
+torchvision
+streamlit-cropper
 Pillow
 matplotlib
 
