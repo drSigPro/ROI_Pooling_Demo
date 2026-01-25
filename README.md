@@ -55,6 +55,3 @@ A `Dockerfile.txt` is included for containerized deployment.
     ```
     Access the app at `http://localhost:8080`.
 
-## Acknowledgments
-
-Created for **AAI3001** (Advanced AI) lectures to illustrate Computer Vision concepts.
