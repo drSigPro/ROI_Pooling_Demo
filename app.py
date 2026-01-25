@@ -6,6 +6,8 @@ import torchvision.transforms as transforms
 from torchvision.ops import roi_pool
 from streamlit_cropper import st_cropper
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 # Set page configuration
 st.set_page_config(layout="wide")
@@ -114,6 +116,16 @@ if uploaded_file is not None:
                 else:
                     spatial_scale = 1
 
+                # --- ENHANCEMENT 2: Spatial Scale Info ---
+                st.info(f"""
+                **Spatial Scale Calculation:**
+                - Original Image Width: `{image.width}px`
+                - Feature Map Width: `{feature_map.shape[3]}px`
+                - Scale Factor: `{spatial_scale:.4f}` (approx 1/{1/spatial_scale:.1f})
+                
+                Your selected ROI `{cropped_box['width']}x{cropped_box['height']}` (in original pixels) becomes approximately `{int(cropped_box['width'] * spatial_scale)}x{int(cropped_box['height'] * spatial_scale)}` in feature map pixels.
+                """)
+
                 roi = torch.tensor([[
                     0,
                     cropped_box['left'] * spatial_scale,
@@ -122,12 +134,67 @@ if uploaded_file is not None:
                     (cropped_box['top'] + cropped_box['height']) * spatial_scale
                 ]], dtype=torch.float32)
 
+                # --- ENHANCEMENT 1: Projected ROI Visualization ---
+                st.subheader("2.1 Projection on Feature Map")
+                st.write("This shows where your selected region lands on the downsampled feature map.")
+
+                # Visualize the mean activation map
+                mean_activation_map = feature_map[0].mean(0).detach().numpy()
+
+                fig_proj, ax_proj = plt.subplots(figsize=(6, 6))
+                ax_proj.imshow(mean_activation_map, cmap='jet')
+
+                # Add the bounding box
+                # ROI format: [batch_idx, x1, y1, x2, y2]
+                roi_x = roi[0, 1].item()
+                roi_y = roi[0, 2].item()
+                roi_w = roi[0, 3].item() - roi_x
+                roi_h = roi[0, 4].item() - roi_y
+
+                rect = patches.Rectangle((roi_x, roi_y), roi_w, roi_h, linewidth=2, edgecolor='white', facecolor='none')
+                ax_proj.add_patch(rect)
+                ax_proj.set_title("Projected ROI on Average Feature Map")
+                ax_proj.axis('off')
+
+                st.pyplot(fig_proj)
+
                 # 4. Apply ROI pooling
                 pooled_features = roi_pool(feature_map, roi, output_size)
 
-                st.subheader("3. ROI Pooling Result")
+                # --- ENHANCEMENT 3: Grid Visualization on Original ROI ---
+                st.subheader("3. Pooling Grid Visualization")
+                st.write(f"This shows how the {output_size[0]}x{output_size[1]} grid divides your original/cropped image area.")
+
+                if cropped_box:
+                    cropped_img_np = np.array(cropped_img)
+                    fig_grid, ax_grid = plt.subplots(figsize=(4, 4))
+                    ax_grid.imshow(cropped_img_np)
+
+                    # Draw grid lines
+                    img_h, img_w, _ = cropped_img_np.shape
+                    step_h = img_h / output_size[0]
+                    step_w = img_w / output_size[1]
+
+                    for i in range(1, output_size[0]):
+                        ax_grid.axhline(i * step_h, color='white', linestyle='--', linewidth=1)
+                    for i in range(1, output_size[1]):
+                        ax_grid.axvline(i * step_w, color='white', linestyle='--', linewidth=1)
+
+                    ax_grid.set_title(f"Original ROI with {output_size} Pooling Grid")
+                    ax_grid.axis('off')
+                    st.pyplot(fig_grid)
+
+                st.subheader("4. ROI Pooling Result")
                 st.write(f"The shape of the pooled features is: `{pooled_features.shape}`.")
                 st.success(f"Notice that the output spatial dimension is now fixed to **{output_size}**, as you specified, regardless of the original ROI size.")
+
+                # --- ENHANCEMENT 5: Matrix View for Small Sizes ---
+                if output_size[0] * output_size[1] <= 100:
+                    st.write("#### 'Under the Hood' - Values of the first pooled channel")
+                    st.write("These are the actual values resulting from the max/average pooling operation in each bin.")
+                    # Use the first channel (index 0)
+                    df_values = pooled_features[0, 0].detach().numpy()
+                    st.dataframe(df_values)
 
                 st.write(f"### Visualizing the first {num_channels_to_display} channels of the Pooled Features")
 
